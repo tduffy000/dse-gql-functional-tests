@@ -8,6 +8,7 @@ import fetch from 'node-fetch';
 
 // redefine as needed
 const SERVER_URI = 'http://localhost:4000/';
+const badTokenError = 'GraphQL error: Bad Token';
 
 const makeClient = ({ uri = SERVER_URI, token = null } = {}) => {
   const linkOptions = {
@@ -45,6 +46,17 @@ const loginUser = async (
 
   const { token } = result.data.loginUser;
   return makeClient({ token });
+};
+
+const logoutUser = async (client) => {
+  const logoutUserMutation = gql`
+    mutation {
+      logoutUser
+    }
+  `;
+
+  const result = await client.mutate({ mutation: logoutUserMutation });
+  return result.data.logoutUser;
 };
 
 const sayHello = async (client) => {
@@ -107,7 +119,6 @@ describe('Hello Tests', () => {
 
 describe('Login Tests', () => {
   let client;
-  const badTokenError = 'GraphQL error: Bad Token';
 
   beforeAll(() => {
     client = makeClient();
@@ -138,6 +149,36 @@ describe('Login Tests', () => {
   });
 });
 
+describe('Logout Tests', () => {
+  let client;
+
+  beforeAll(async () => {
+    client = await loginUser();
+  });
+
+  it('should logout a logged in user', async () => {
+    const result = await logoutUser(client);
+    expect(result).toEqual(true);
+  });
+});
+
+describe('Invalid Logout Tests', () => {
+  let client;
+
+  beforeAll(async () => {
+    client = await makeClient();
+  });
+
+  it('should not log out a user without an existing session', async () => {
+    expect.assertions(1);
+    try {
+      const result = await logoutUser(client);
+      expect(result).toEqual();
+    } catch (e) {
+      expect(e.message).toEqual(badTokenError);
+    }
+  });
+});
 describe('List Users', () => {
   let client;
 
@@ -172,3 +213,5 @@ describe('List Users', () => {
 
   it.todo('should get a student');
 });
+
+describe('Enforce student authorization', () => {});

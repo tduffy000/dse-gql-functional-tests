@@ -72,6 +72,25 @@ const listUsers = async (client) => {
   return result.data;
 };
 
+const listStudents = async (client) => {
+  const q = gql`
+    query {
+      students {
+        id
+        name
+        email
+        role
+        courses {
+          id
+          name
+        }
+      }
+    }
+  `;
+  const result = await client.query({ query: q });
+  return result.data;
+};
+
 // can the server say hello?
 describe('Hello Tests', () => {
   let client;
@@ -135,4 +154,21 @@ describe('List Users', () => {
       expect(u[attr]).toBeDefined();
     }
   });
+
+  it('should list students', async () => {
+    const result = await listStudents(client);
+    expect(result.students.length).toBeGreaterThan(0);
+    const { students } = result;
+    const s = students[0];
+
+    for (const attr of ['id', 'email', 'role', 'name']) {
+      expect(s[attr]).toBeDefined();
+    }
+  });
+
+  it.todo('should list faculty');
+
+  it.todo('should get a single user');
+
+  it.todo('should get a student');
 });

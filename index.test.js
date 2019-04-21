@@ -5,6 +5,7 @@ import ApolloClient from 'apollo-client';
 import { createHttpLink } from 'apollo-link-http';
 import { InMemoryCache } from 'apollo-cache-inmemory';
 import fetch from 'node-fetch';
+import { create } from 'handlebars';
 
 // redefine as needed
 const SERVER_URI = 'http://localhost:4000/';
@@ -256,4 +257,19 @@ describe('List Users', () => {
   it.todo('should get a student');
 });
 
-describe('Enforce student authorization', () => {});
+describe('User Creation', () => {
+  let client;
+  beforeAll(async () => {
+    client = await loginUser();
+  });
+
+  it.todo('should create a user');
+});
+
+describe('Enforce student authorization', () => {
+  it.todo('should not let student create a user');
+});
+
+describe('Enforce faculty authorization', () => {
+  it.todo('should not let a faculty create a user');
+});

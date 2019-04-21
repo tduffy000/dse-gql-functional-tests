@@ -9,6 +9,8 @@ import fetch from 'node-fetch';
 // redefine as needed
 const SERVER_URI = 'http://localhost:4000/';
 const badTokenError = 'GraphQL error: Bad Token';
+const ADMIN_EMAIL = 'admin@example.com';
+const ADMIN_PASSWORD = 'password';
 
 const makeClient = ({ uri = SERVER_URI, token = null } = {}) => {
   const linkOptions = {
@@ -27,7 +29,7 @@ const makeClient = ({ uri = SERVER_URI, token = null } = {}) => {
 
 const loginUser = async (
   client = makeClient(),
-  { email = 'admin@example.com', password = 'password' } = {},
+  { email = ADMIN_EMAIL, password = ADMIN_PASSWORD } = {},
 ) => {
   const loginUserMutation = gql`
     mutation LoginUser($email: String!, $password: String!) {
@@ -103,6 +105,21 @@ const listStudents = async (client) => {
   return result.data;
 };
 
+const getCurrentUser = async (client) => {
+  const q = gql`
+    query {
+      currentUser {
+        id
+        name
+        email
+        role
+      }
+    }
+  `;
+  const result = await client.query({ query: q });
+  return result.data;
+};
+
 // can the server say hello?
 describe('Hello Tests', () => {
   let client;
@@ -147,6 +164,15 @@ describe('Login Tests', () => {
       expect(e.message).toEqual(badTokenError);
     }
   });
+
+  it('should not retrieve current user without login', async () => {
+    expect.assertions(1);
+    try {
+      await getCurrentUser(client);
+    } catch (e) {
+      expect(e.message).toEqual(badTokenError);
+    }
+  });
 });
 
 describe('Logout Tests', () => {
@@ -179,6 +205,22 @@ describe('Invalid Logout Tests', () => {
     }
   });
 });
+
+describe('Retrieve current user', async () => {
+  let client;
+
+  beforeAll(async () => {
+    client = await loginUser();
+  });
+
+  it('should get the current user', async () => {
+    const result = await getCurrentUser(client);
+    const { currentUser } = result;
+
+    expect(currentUser.email).toEqual(ADMIN_EMAIL);
+  });
+});
+
 describe('List Users', () => {
   let client;
 

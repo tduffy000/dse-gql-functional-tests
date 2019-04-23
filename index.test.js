@@ -5,13 +5,19 @@ import ApolloClient from 'apollo-client';
 import { createHttpLink } from 'apollo-link-http';
 import { InMemoryCache } from 'apollo-cache-inmemory';
 import fetch from 'node-fetch';
-import { create } from 'handlebars';
 
 // redefine as needed
 const SERVER_URI = 'http://localhost:4000/';
 const badTokenError = 'GraphQL error: Bad Token';
+
 const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_PASSWORD = 'password';
+
+const STUDENT_EMAIL = 'one@example.com';
+const STUDENT_PASSWORD = 'password';
+
+const FACULTY_EMAIL = 'prof@example.com';
+const FACULTY_PASSWORD = 'password';
 
 const makeClient = ({ uri = SERVER_URI, token = null } = {}) => {
   const linkOptions = {
@@ -28,10 +34,11 @@ const makeClient = ({ uri = SERVER_URI, token = null } = {}) => {
   });
 };
 
-const loginUser = async (
+const loginUser = async ({
   client = makeClient(),
-  { email = ADMIN_EMAIL, password = ADMIN_PASSWORD } = {},
-) => {
+  email = ADMIN_EMAIL,
+  password = ADMIN_PASSWORD,
+} = {}) => {
   const loginUserMutation = gql`
     mutation LoginUser($email: String!, $password: String!) {
       loginUser(email: $email, password: $password) {
@@ -121,6 +128,31 @@ const getCurrentUser = async (client) => {
   return result.data;
 };
 
+const createUser = async (client, {
+  name = '', email = '', role = 'Student', password = '',
+}) => {
+  const m = gql`
+    mutation createUser($name: String!, $email: String!, $role: Role, $password: String!) {
+      createUser(user: { name: $name, email: $email, role: $role, password: $password }) {
+        id
+        name
+        role
+      }
+    }
+  `;
+  const result = await client.mutate({
+    mutation: m,
+    variables: {
+      name,
+      email,
+      role,
+      password,
+    },
+  });
+
+  return result.data.createUser;
+};
+
 // can the server say hello?
 describe('Hello Tests', () => {
   let client;
@@ -143,16 +175,15 @@ describe('Login Tests', () => {
   });
 
   it('should login user', async () => {
-    const newClient = await loginUser(client);
+    const newClient = await loginUser({ client });
     expect(newClient).toBeDefined();
   });
 
   it('should not login a user with invalid credentials', async () => {
     try {
-      const newClient = await loginUser(client, { email: 'bad@example.com', password: 'bad' });
+      const newClient = await loginUser({ client, email: 'bad@example.com', password: 'bad' });
       expect(newClient).not.toBeDefined();
     } catch (e) {
-      console.log(e.message);
       expect(e.message).toEqual('GraphQL error: Bad Login or Password');
     }
   });
@@ -207,7 +238,7 @@ describe('Invalid Logout Tests', () => {
   });
 });
 
-describe('Retrieve current user', async () => {
+describe('Retrieve current user', () => {
   let client;
 
   beforeAll(async () => {
@@ -260,16 +291,54 @@ describe('List Users', () => {
 describe('User Creation', () => {
   let client;
   beforeAll(async () => {
-    client = await loginUser();
+    client = await loginUser({});
   });
 
-  it.todo('should create a user');
+  it('should create a user', async () => {
+    const result = await createUser(client, {
+      name: 'new user name',
+      email: 'newuser@example.com',
+      password: 'new-user-password',
+    });
+    expect(result.id).toBeDefined();
+  });
 });
 
-describe('Enforce student authorization', () => {
-  it.todo('should not let student create a user');
+describe('Enforce student authorizations', () => {
+  let client;
+  beforeAll(async () => {
+    client = await loginUser({ email: STUDENT_EMAIL, password: STUDENT_PASSWORD });
+  });
+
+  it('should not let student create a user', async () => {
+    expect.assertions(1);
+    try {
+      await createUser(client, {
+        name: 'new user name',
+        email: 'newUser@example.com',
+        password: 'new_password',
+      });
+    } catch (e) {
+      expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
+    }
+  });
 });
 
 describe('Enforce faculty authorization', () => {
-  it.todo('should not let a faculty create a user');
+  let client;
+  beforeAll(async () => {
+    client = await loginUser({ email: FACULTY_EMAIL, password: FACULTY_PASSWORD });
+  });
+  it('should not let a faculty create a user', async () => {
+    expect.assertions(1);
+    try {
+      await createUser(client, {
+        name: 'new user name',
+        email: 'newUser@example.com',
+        password: 'new_password',
+      });
+    } catch (e) {
+      expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
+    }
+  });
 });

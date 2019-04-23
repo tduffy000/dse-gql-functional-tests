@@ -69,6 +69,10 @@ const logoutUser = async (client) => {
   return result.data.logoutUser;
 };
 
+const loginAdmin = async client => loginUser();
+const loginStudent = async client => loginUser({ email: STUDENT_EMAIL, password: STUDENT_PASSWORD });
+const loginFaculty = async client => loginUser({ email: FACULTY_EMAIL, password: FACULTY_PASSWORD });
+
 const sayHello = async (client) => {
   const q = gql`
     query {
@@ -291,7 +295,7 @@ describe('List Users', () => {
 describe('User Creation', () => {
   let client;
   beforeAll(async () => {
-    client = await loginUser({});
+    client = await loginAdmin();
   });
 
   it('should create a user', async () => {
@@ -302,12 +306,33 @@ describe('User Creation', () => {
     });
     expect(result.id).toBeDefined();
   });
+
+  it.todo('should validate user email format');
+});
+
+describe('Course Operations', () => {
+  let client;
+  beforeAll(async () => {
+    client = await loginFaculty();
+  });
+
+  it.todo('should create a course');
+});
+
+describe('Assignment Operations', () => {
+  let client;
+  beforeAll(async () => {
+    client = await loginFaculty();
+  });
+
+  it.todo('should create an assignment by faculty');
+  it.todo('should assign a student a grade for an assignment');
 });
 
 describe('Enforce student authorizations', () => {
   let client;
   beforeAll(async () => {
-    client = await loginUser({ email: STUDENT_EMAIL, password: STUDENT_PASSWORD });
+    client = await loginStudent();
   });
 
   it('should not let student create a user', async () => {
@@ -322,13 +347,20 @@ describe('Enforce student authorizations', () => {
       expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
     }
   });
+
+  it.todo('should not let student create a course');
+  it.todo('should not let student update a course');
+  it.todo('should not let students delete a course');
+  it.todo('should not let students create an assignment');
+  it.todo('should not let students assign a grade');
 });
 
 describe('Enforce faculty authorization', () => {
   let client;
   beforeAll(async () => {
-    client = await loginUser({ email: FACULTY_EMAIL, password: FACULTY_PASSWORD });
+    client = await loginFaculty();
   });
+
   it('should not let a faculty create a user', async () => {
     expect.assertions(1);
     try {
@@ -341,4 +373,7 @@ describe('Enforce faculty authorization', () => {
       expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
     }
   });
+
+  it.todo('should not let faculty create a course');
+  it.todo('should not let faculty delete a course');
 });

@@ -179,8 +179,8 @@ const createCourse = async (client, {
   name = '', professorID = -1
 }) => {
   const m = gql`
-    mutation createCourse($name: String!, $professorID: ID! ) {
-      createCourse( name: $name, professorID: $professorID ) {
+    mutation createCourse($name: String!, $professorID: ID!) {
+      createCourse(name: $name, professorID: $professorID) {
         id
         name
         professor {
@@ -198,6 +198,48 @@ const createCourse = async (client, {
     }
   });
   return result.data.createCourse;
+};
+
+const deleteCourse = async (client, {
+  courseID = -1
+}) => {
+  const m = gql`
+    mutation deleteCourse($courseID: ID!) {
+      deleteCourse(courseID: $courseID) {
+        id
+      }
+    }
+  `;
+  // TODO: what does the deleteCourse query return?
+  const result = await client.mutate({
+    mutation: m,
+    variables: {
+      courseID
+    }
+  });
+  return result.data.deleteCourse;
+}
+
+// TODO: add course to query
+const createAssignment = async (client, {
+  name =  '', courseID=  -1
+}) => {
+  const m = gql`
+    mutation createAssignment($name: String!, $courseID: ID!) {
+      createAssignment(name: $name, courseID: $courseID) {
+        id
+        name
+      }
+    }
+  `;
+  const result = await client.mutate({
+    mutation: m,
+    variables: {
+      name,
+      courseID
+    }
+  });
+  return result.data.createAssignment;
 };
 
 /**
@@ -372,7 +414,7 @@ describe('User Creation', () => {
 describe('Course Operations', () => {
   let client;
   beforeAll(async () => {
-    client = await loginFaculty();
+    client = await loginAdmin();
   });
 
   it('should create a course', async () => {
@@ -390,7 +432,14 @@ describe('Assignment Operations', () => {
     client = await loginFaculty();
   });
 
-  it.todo('should create an assignment by faculty');
+  it('should create an assignment by faculty', async () => {
+    const result = await createAssignment(client, {
+      name: 'Graphs',
+      courseID: 1
+    });
+    expect(result.id).toBeDefined();
+  });
+
   it.todo('should assign a student a grade for an assignment');
 });
 
@@ -413,11 +462,45 @@ describe('Enforce student authorizations', () => {
     }
   });
 
-  it.todo('should not let student create a course');
+  it('should not let student create a course', async () => {
+    expect.assertions(1);
+      try {
+        await createCourse(client, {
+          name: 'Faculty Revolution',
+          professorID: 1
+        });
+      } catch(e) {
+        expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
+      }
+  });
+
   it.todo('should not let student update a course');
-  it.todo('should not let students delete a course');
-  it.todo('should not let students create an assignment');
+
+  it('should not let students delete a course', async () => {
+    expect.assertions(1);
+    try {
+      await deleteCourse(client, {
+        courseID: 1
+      })
+    } catch(e) {
+      expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
+    }
+  });
+
+  it('should not let students create an assignment', async () => {
+    expect.assertions(1);
+    try {
+      await createAssignment(client, {
+        name: 'Easy A',
+        courseID: 1
+      });
+    } catch(e) {
+      expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
+    }
+  });
+
   it.todo('should not let students assign a grade');
+
 });
 
 describe('Enforce faculty authorization', () => {
@@ -439,6 +522,27 @@ describe('Enforce faculty authorization', () => {
     }
   });
 
-  it.todo('should not let faculty create a course');
-  it.todo('should not let faculty delete a course');
+  it('should not let faculty create a course', async () => {
+    expect.assertions(1);
+      try {
+        await createCourse(client, {
+          name: 'Faculty Revolution',
+          professorID: 1
+        });
+      } catch(e) {
+        expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
+      }
+  });
+
+  it('should not let faculty delete a course', async () => {
+    expect.assertions(1);
+    try {
+      await deleteCourse(client, {
+        courseID: 1
+      })
+    } catch(e) {
+      expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
+    }
+  });
+
 });

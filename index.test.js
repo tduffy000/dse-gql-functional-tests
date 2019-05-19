@@ -10,13 +10,13 @@ import fetch from 'node-fetch';
 const SERVER_URI = 'http://localhost:4000/';
 const badTokenError = 'GraphQL error: Bad Token';
 
-const ADMIN_EMAIL = 'admin@example.com';
+const ADMIN_EMAIL = 'roger@whitevisitation.gov';
 const ADMIN_PASSWORD = 'password';
 
-const STUDENT_EMAIL = 'one@example.com';
+const STUDENT_EMAIL = 'tyslop@thezone.com';
 const STUDENT_PASSWORD = 'password';
 
-const FACULTY_EMAIL = 'prof@example.com';
+const FACULTY_EMAIL = 'poison-apple@google.co.uk';
 const FACULTY_PASSWORD = 'password';
 
 const makeClient = ({ uri = SERVER_URI, token = null } = {}) => {
@@ -34,6 +34,9 @@ const makeClient = ({ uri = SERVER_URI, token = null } = {}) => {
   });
 };
 
+/**
+ * CREDENTIAL PROCEDURES
+ */
 const loginUser = async ({
   client = makeClient(),
   email = ADMIN_EMAIL,
@@ -73,16 +76,9 @@ const loginAdmin = async client => loginUser();
 const loginStudent = async client => loginUser({ email: STUDENT_EMAIL, password: STUDENT_PASSWORD });
 const loginFaculty = async client => loginUser({ email: FACULTY_EMAIL, password: FACULTY_PASSWORD });
 
-const sayHello = async (client) => {
-  const q = gql`
-    query {
-      hello
-    }
-  `;
-  const result = await client.query({ query: q });
-  return result.data;
-};
-
+/**
+ * QUERIES
+ */
 const listUsers = async (client) => {
   const q = gql`
     query {
@@ -117,6 +113,25 @@ const listStudents = async (client) => {
   return result.data;
 };
 
+const listFaculty = async (client) => {
+  const q = gql`
+    query {
+      faculty {
+        id
+        name
+        email
+        role
+        courses {
+          id
+          name
+        }
+      }
+    }
+  `;
+  const result = await client.query({ query: q });
+  return result.data;
+}
+
 const getCurrentUser = async (client) => {
   const q = gql`
     query {
@@ -132,6 +147,9 @@ const getCurrentUser = async (client) => {
   return result.data;
 };
 
+/**
+ * MUTATIONS
+ */
 const createUser = async (client, {
   name = '', email = '', role = 'Student', password = '',
 }) => {
@@ -157,20 +175,34 @@ const createUser = async (client, {
   return result.data.createUser;
 };
 
-// can the server say hello?
-describe('Hello Tests', () => {
-  let client;
-
-  beforeAll(() => {
-    client = makeClient();
+const createCourse = async (client, {
+  name = '', professorID = -1
+}) => {
+  const m = gql`
+    mutation createCourse($name: String!, $professorID: ID! ) {
+      createCourse( name: $name, professorID: $professorID ) {
+        id
+        name
+        professor {
+          id
+          name
+        }
+      }
+    }
+  `;
+  const result = await client.mutate({
+    mutation: m,
+    variables: {
+      name,
+      professorID
+    }
   });
+  return result.data.createCourse;
+};
 
-  it('should say hello', async () => {
-    const r = await sayHello(client);
-    expect(r).toEqual({ hello: 'world' });
-  });
-});
-
+/**
+ * CREDENTIAL TESTS
+ */
 describe('Login Tests', () => {
   let client;
 
@@ -242,6 +274,9 @@ describe('Invalid Logout Tests', () => {
   });
 });
 
+/**
+ * QUERY TESTS
+ */
 describe('Retrieve current user', () => {
   let client;
 
@@ -285,13 +320,25 @@ describe('List Users', () => {
     }
   });
 
-  it.todo('should list faculty');
+  it('should list faculty', async () => {
+    const result = await listFaculty(client);
+    expect(result.faculty.length).toBeGreaterThan(0);
+    const { faculty } = result;
+    const f = faculty[0];
+
+    for (const attr of ['id', 'email', 'role', 'name']) {
+      expect(f[attr]).toBeDefined();
+    }
+  });
 
   it.todo('should get a single user');
 
   it.todo('should get a student');
 });
 
+/**
+ * MUTATION TESTS
+ */
 describe('User Creation', () => {
   let client;
   beforeAll(async () => {
@@ -307,7 +354,19 @@ describe('User Creation', () => {
     expect(result.id).toBeDefined();
   });
 
-  it.todo('should validate user email format');
+  it('should validate user email format', async () => {
+    expect.assertions(1);
+    try {
+      await createUser(client, {
+        name: 'bad email user',
+        email: 'notAnEmail',
+        password: 'nicetry'
+      });
+    } catch(e) {
+      expect(e.message).toEqual('GraphQL error: Validation error: Validation isEmail on email failed');
+    }
+  });
+
 });
 
 describe('Course Operations', () => {
@@ -316,7 +375,13 @@ describe('Course Operations', () => {
     client = await loginFaculty();
   });
 
-  it.todo('should create a course');
+  it('should create a course', async () => {
+    const result = await createCourse(client, {
+      name: 'Theory of Testing',
+      professorID: 1
+    });
+    expect(result.id).toBeDefined();
+  })
 });
 
 describe('Assignment Operations', () => {

@@ -121,7 +121,7 @@ const listFaculty = async (client) => {
         name
         email
         role
-        courses {
+        teaching {
           id
           name
         }
@@ -220,6 +220,58 @@ const deleteCourse = async (client, {
   return result.data.deleteCourse;
 }
 
+// TODO: add professor to query
+const updateCourse = async (client, {
+  courseID = -1, name = '', professorID = -1
+}) => {
+  const m = gql`
+    mutation updateCourse($courseID: ID!, $name: String!, $professorID: ID!) {
+      updateCourse(courseID: $courseID, name: $name, professorID: $professorID) {
+        id
+        name
+      }
+    }
+  `;
+  const result = await client.mutate({
+    mutation: m,
+    variables: {
+      courseID,
+      name,
+      professorID
+    }
+  });
+  return result.data.updateCourse;
+}
+
+const addStudentToCourse = async (client, {
+  userID = -1, courseID = -1
+}) => {
+  const m = gql`
+    mutation addStudentToCourse($userID: ID!, $courseID: ID!) {
+      addStudentToCourse(userID: $userID, courseID: $courseID) {
+        id
+        name
+      }
+    }
+  `;
+  const result = await client.mutate({
+    mutation: m,
+    variables: {
+      userID,
+      courseID
+    }
+  });
+  return result.data.addStudentToCourse;
+}
+
+/*
+const removeStudentFromCourse = async (client, {
+  userID = -1, courseID = -1
+}) => {
+
+}
+*/
+
 // TODO: add course to query
 const createAssignment = async (client, {
   name =  '', courseID=  -1
@@ -240,6 +292,36 @@ const createAssignment = async (client, {
     }
   });
   return result.data.createAssignment;
+};
+
+const createAssignmentGrade = async (client, {
+  assignmentID = -1, studentID = -1, grade = 'F'
+}) => {
+  const m = gql`
+    mutation createAssignmentGrade($assignmentID: ID!, $studentID: ID!, $grade: String!) {
+      createAssignmentGrade(assignmentID: $assignmentID, studentID: $studentID, grade: $grade) {
+        id
+        student {
+          id
+          name
+        }
+        course {
+          id
+          name
+        }
+        grade
+      }
+    }
+  `;
+  const result = await client.mutate({
+    mutation: m,
+    variables: {
+      assignmentID,
+      studentID,
+      grade
+    }
+  });
+  return result.data.createAssignmentGrade;
 };
 
 /**
@@ -373,9 +455,6 @@ describe('List Users', () => {
     }
   });
 
-  it.todo('should get a single user');
-
-  it.todo('should get a student');
 });
 
 /**
@@ -474,7 +553,18 @@ describe('Enforce student authorizations', () => {
       }
   });
 
-  it.todo('should not let student update a course');
+  it('should not let student update a course', async () => {
+    expect.assertions(1);
+    try {
+        await updateCourse(client, {
+          courseID: 2,
+          name: 'Determinism in Rocket Flightpaths',
+          professorID: 1
+        })
+    } catch(e) {
+      expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
+    }
+  });
 
   it('should not let students delete a course', async () => {
     expect.assertions(1);
@@ -499,7 +589,21 @@ describe('Enforce student authorizations', () => {
     }
   });
 
-  it.todo('should not let students assign a grade');
+  it.todo('should not let students assign a grade')
+/*
+  it('should not let students assign a grade', async () => {
+    expect.assertions(1);
+    try {
+      await createAssignmentGrade(client, {
+        assignmentID: 1,
+        studentID:1,
+        grade: 'A+'
+      })
+    } catch(e) {
+      expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
+    }
+  });
+*/
 
 });
 
@@ -544,5 +648,54 @@ describe('Enforce faculty authorization', () => {
       expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
     }
   });
+
+});
+
+/**
+  * CUSTOM TESTS
+  */
+describe('Student course enrollment tests', () => {
+  let client;
+  beforeAll(async () => {
+    client = await loginAdmin();
+  });
+
+  it('should add student to a course', async () => {
+    const result = await addStudentToCourse(client, {
+      userID: 2,
+      courseID: 1
+    });
+    expect(result.id).toBeDefined();
+  });
+
+  it('should not add an admin to a course', async () => {
+    expect.assertions(1);
+    try {
+      const result = await addStudentToCourse(client, {
+        userID: 3,
+        courseID: 2
+      });
+    } catch(e) {
+      expect(e.message).toEqual('GraphQL error: Only Students can be enrolled in Courses');
+    }
+  });
+
+});
+
+describe('Additional tests', () => {
+  let client;
+  beforeAll(async () => {
+    client = await loginUser();
+  });
+
+  it.todo('should remove student from a course');
+
+  it.todo('should get student assignments');
+
+  it.todo('should get courses taught for professor' )
+
+  it.todo('should not allow a faculty member to enroll in a course');
+
+  it.todo('should return student GPA');
 
 });

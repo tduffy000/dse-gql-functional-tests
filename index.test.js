@@ -220,7 +220,6 @@ const deleteCourse = async (client, {
   return result.data.deleteCourse;
 }
 
-// TODO: add professor to query
 const updateCourse = async (client, {
   courseID = -1, name = '', professorID = -1
 }) => {
@@ -264,15 +263,6 @@ const addStudentToCourse = async (client, {
   return result.data.addStudentToCourse;
 }
 
-/*
-const removeStudentFromCourse = async (client, {
-  userID = -1, courseID = -1
-}) => {
-
-}
-*/
-
-// TODO: add course to query
 const createAssignment = async (client, {
   name =  '', courseID=  -1
 }) => {
@@ -295,17 +285,17 @@ const createAssignment = async (client, {
 };
 
 const createAssignmentGrade = async (client, {
-  assignmentID = -1, studentID = -1, grade = 'F'
+  assignmentID = -1, courseID = -1, studentID = -1, grade = 'F'
 }) => {
   const m = gql`
-    mutation createAssignmentGrade($assignmentID: ID!, $studentID: ID!, $grade: String!) {
-      createAssignmentGrade(assignmentID: $assignmentID, studentID: $studentID, grade: $grade) {
+    mutation createAssignmentGrade($assignmentID: ID!, $courseID: ID!, $studentID: ID!, $grade: String!) {
+      createAssignmentGrade(assignmentID: $assignmentID, courseID: $courseID, studentID: $studentID, grade: $grade) {
         id
         student {
           id
           name
         }
-        course {
+        assignment {
           id
           name
         }
@@ -318,6 +308,7 @@ const createAssignmentGrade = async (client, {
     variables: {
       assignmentID,
       studentID,
+      courseID,
       grade
     }
   });
@@ -413,6 +404,7 @@ describe('Retrieve current user', () => {
     const { currentUser } = result;
 
     expect(currentUser.email).toEqual(ADMIN_EMAIL);
+    await logoutUser( client );
   });
 });
 
@@ -519,7 +511,16 @@ describe('Assignment Operations', () => {
     expect(result.id).toBeDefined();
   });
 
-  it.todo('should assign a student a grade for an assignment');
+  it('should assign a student a grade for an assignment', async () => {
+    const result = await createAssignmentGrade(client, {
+      assignmentID: 1,
+      courseID: 1,
+      studentID: 2,
+      grade: "A"
+    });
+    expect(result.grade).toBeDefined();
+  });
+
 });
 
 describe('Enforce student authorizations', () => {
@@ -589,21 +590,19 @@ describe('Enforce student authorizations', () => {
     }
   });
 
-  it.todo('should not let students assign a grade')
-/*
   it('should not let students assign a grade', async () => {
     expect.assertions(1);
     try {
       await createAssignmentGrade(client, {
         assignmentID: 1,
-        studentID:1,
-        grade: 'A+'
+        courseID: 1,
+        studentID: 2,
+        grade: 'A'
       })
     } catch(e) {
       expect(e.message).toEqual('GraphQL error: Operation Not Permitted');
     }
   });
-*/
 
 });
 

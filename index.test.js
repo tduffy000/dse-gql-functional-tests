@@ -7,8 +7,8 @@ import { InMemoryCache } from 'apollo-cache-inmemory';
 import fetch from 'node-fetch';
 
 // redefine as needed
-// const SERVER_URI = 'https://whispering-harbor-80622.herokuapp.com';
-const SERVER_URI = 'http://localhost:4000';
+const SERVER_URI = 'https://whispering-harbor-80622.herokuapp.com';
+// const SERVER_URI = 'http://localhost:4000';
 
 const badTokenError = 'GraphQL error: Bad Token';
 

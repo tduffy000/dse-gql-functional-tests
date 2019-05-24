@@ -7,7 +7,9 @@ import { InMemoryCache } from 'apollo-cache-inmemory';
 import fetch from 'node-fetch';
 
 // redefine as needed
-const SERVER_URI = 'http://localhost:4000/';
+// const SERVER_URI = 'https://whispering-harbor-80622.herokuapp.com';
+const SERVER_URI = 'http://localhost:4000';
+
 const badTokenError = 'GraphQL error: Bad Token';
 
 const ADMIN_EMAIL = 'roger@whitevisitation.gov';
@@ -106,6 +108,30 @@ const listStudents = async (client) => {
           id
           name
         }
+        assignments {
+          id
+          name
+        }
+      }
+    }
+  `;
+  const result = await client.query({ query: q });
+  return result.data;
+};
+
+const listStudentsWithGPA = async (client) => {
+  const q = gql`
+    query {
+      students {
+        id
+        name
+        email
+        role
+        courses {
+          id
+          name
+        }
+        gpa
       }
     }
   `;
@@ -210,7 +236,6 @@ const deleteCourse = async (client, {
       }
     }
   `;
-  // TODO: what does the deleteCourse query return?
   const result = await client.mutate({
     mutation: m,
     variables: {
@@ -250,6 +275,9 @@ const addStudentToCourse = async (client, {
       addStudentToCourse(userID: $userID, courseID: $courseID) {
         id
         name
+        students {
+          id
+        }
       }
     }
   `;
@@ -261,7 +289,30 @@ const addStudentToCourse = async (client, {
     }
   });
   return result.data.addStudentToCourse;
-}
+};
+
+const removeStudentFromCourse = async (client, {
+  userID = -1, courseID = -1
+}) => {
+  const m = gql`
+    mutation removeStudentFromCourse($userID: ID!, $courseID: ID!) {
+      removeStudentFromCourse(userID: $userID, courseID: $courseID) {
+        id
+        name
+        students {
+          id
+        }
+      }
+    }
+  `;
+  const result = await client.mutate({
+    mutation: m,
+    variables: {
+      userID,
+      courseID
+    }
+  })
+};
 
 const createAssignment = async (client, {
   name =  '', courseID=  -1
@@ -449,6 +500,35 @@ describe('List Users', () => {
 
 });
 
+describe('Nested Queries', () => {
+  let client;
+
+  beforeAll(async () => {
+    client = await loginUser();
+  });
+
+  it('should get courses taught for professor', async () => {
+    const result = await listFaculty(client);
+    expect(result.faculty.length).toBeGreaterThan(0);
+    const { faculty } = result;
+    const f = faculty[0];
+    expect(f['teaching'].length).toBeGreaterThan(0);
+  });
+
+  it('should list students with GPA', async () => {
+    const result = await listStudentsWithGPA(client);
+    expect(result.students.length).toBeGreaterThan(0);
+    const { students } = result;
+    const s = students[0];
+
+    for (const attr of ['id', 'email', 'role', 'name', 'gpa']) {
+      expect(s[attr]).toBeDefined();
+    }
+  });
+
+});
+
+
 /**
  * MUTATION TESTS
  */
@@ -462,7 +542,7 @@ describe('User Creation', () => {
     const result = await createUser(client, {
       name: 'new user name',
       email: 'newuser@example.com',
-      password: 'new-user-password',
+      password: 'new-user-password'
     });
     expect(result.id).toBeDefined();
   });
@@ -494,7 +574,8 @@ describe('Course Operations', () => {
       professorID: 1
     });
     expect(result.id).toBeDefined();
-  })
+  });
+
 });
 
 describe('Assignment Operations', () => {
@@ -519,6 +600,13 @@ describe('Assignment Operations', () => {
       grade: "A"
     });
     expect(result.grade).toBeDefined();
+  });
+
+  it('should get student assignments', async () => {
+    const result = await listStudents(client);
+    const { students } = result;
+    const s = students[0];
+    expect(s.assignments.length).toBeGreaterThan(0);
   });
 
 });
@@ -648,11 +736,20 @@ describe('Enforce faculty authorization', () => {
     }
   });
 
+  it('should not allow a faculty member to enroll in a course', async () => {
+    expect.assertions(1);
+    try {
+      await addStudentToCourse(client, {
+        courseID: 1,
+        userID: 4
+      })
+    } catch(e) {
+      expect(e.message).toEqual('GraphQL error: Only Students can be enrolled in Courses');
+    }
+  });
+
 });
 
-/**
-  * CUSTOM TESTS
-  */
 describe('Student course enrollment tests', () => {
   let client;
   beforeAll(async () => {
@@ -664,7 +761,13 @@ describe('Student course enrollment tests', () => {
       userID: 2,
       courseID: 1
     });
-    expect(result.id).toBeDefined();
+    var found = 0;
+    for ( var i = 0; i < result.students.length; i++ ) {
+      if ( result.students[i].id == 2) {
+        found += 1;
+      }
+    };
+    expect(found).toEqual(1);
   });
 
   it('should not add an admin to a course', async () => {
@@ -678,23 +781,5 @@ describe('Student course enrollment tests', () => {
       expect(e.message).toEqual('GraphQL error: Only Students can be enrolled in Courses');
     }
   });
-
-});
-
-describe('Additional tests', () => {
-  let client;
-  beforeAll(async () => {
-    client = await loginUser();
-  });
-
-  it.todo('should remove student from a course');
-
-  it.todo('should get student assignments');
-
-  it.todo('should get courses taught for professor' )
-
-  it.todo('should not allow a faculty member to enroll in a course');
-
-  it.todo('should return student GPA');
 
 });
